@@ -64,6 +64,7 @@ export default function DocsPage() {
     null
   );
   const confettiButtonRef = useRef<HTMLButtonElement>(null);
+  const [consultaRealizada, setConsultaRealizada] = useState(false);
 
   const triggerConfetti = () => {
     confetti({
@@ -177,6 +178,7 @@ export default function DocsPage() {
     handleSubmit,
     control,
     formState: { errors: formErrors },
+    reset: resetOtpForm,
   } = useForm({
     defaultValues: {
       otp: "",
@@ -233,6 +235,7 @@ export default function DocsPage() {
           getProducts();
           setShowOtpForm(false);
           setShowSelect(true);
+          resetOtpForm();
         } else {
           addToast({
             title: "Error",
@@ -343,6 +346,7 @@ export default function DocsPage() {
           color: "success",
         });
         setShowOtpForm(true);
+        setConsultaRealizada(true);
       } else {
         addToast({
           title: "Mensaje",
@@ -390,12 +394,26 @@ export default function DocsPage() {
     }
   };
 
+  const reiniciarProceso = () => {
+    setIdentificacion("");
+    setErrors({});
+    setShowOtpForm(false);
+    setShowSelect(false);
+    setSelectedClient(null);
+    setClients([]);
+    setProducts([]);
+    setConsultaRealizada(false);
+  };
+
   return (
     <section className="container mx-auto px-4 py-8">
       <div className="flex flex-col items-center justify-center">
         <div className="flex flex-wrap gap-4 items-start justify-center w-full transition-all duration-300 ease-in-out">
           {/* Contenedor de identificación */}
-          <div className="relative overflow-hidden flex items-center border border-default-200 dark:border-default-100 px-4 py-6 rounded-lg mb-4">
+          <div className="relative overflow-hidden flex flex-col items-center border border-default-200 dark:border-default-100 px-4 py-6 rounded-lg mb-4">
+            <p className="mb-4 text-center text-sm text-gray-600">
+              Consulta tus puntos disponibles
+            </p>
             <Form
               className="w-full max-w-xs flex flex-col gap-3"
               validationErrors={errors}
@@ -410,15 +428,31 @@ export default function DocsPage() {
                 onChange={handleInputChange}
                 type="text"
                 maxLength={13}
+                isDisabled={consultaRealizada}
               />
-              <Button
-                type="submit"
-                variant="flat"
-                isLoading={loading}
-                color="primary"
-              >
-                Enviar
-              </Button>
+              <div className="flex gap-2">
+                {!consultaRealizada ? (
+                  <Button
+                    type="submit"
+                    variant="flat"
+                    isLoading={loading}
+                    style={{ backgroundColor: "#FF4D4D", color: "white" }}
+                    className="flex-grow"
+                  >
+                    Consultar
+                  </Button>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="flat"
+                    color="secondary"
+                    className="flex-grow"
+                    onPress={reiniciarProceso}
+                  >
+                    Realizar otra Consulta
+                  </Button>
+                )}
+              </div>
             </Form>
           </div>
 
@@ -532,13 +566,20 @@ export default function DocsPage() {
             <div className="w-full max-w-[400px]">
               <Card>
                 <CardHeader className="flex gap-3">
-                  <Image
-                    alt="Fibra Points Logo"
-                    height={40}
-                    radius="sm"
-                    src="https://fibramax.ec/wp-content/uploads/2024/09/Favicon_Mesa-de-trabajo-1.png"
-                    width={40}
-                  />
+                  <div className="bg-default-100 rounded-full p-2">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="currentColor"
+                      className="w-6 h-6 text-default-500"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M7.5 6a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0zM3.751 20.105a8.25 8.25 0 0116.498 0 .75.75 0 01-.437.695A18.683 18.683 0 0112 22.5c-2.786 0-5.433-.608-7.812-1.7a.75.75 0 01-.437-.695z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  </div>
                   <div className="flex flex-col">
                     <p className="text-md font-bold">
                       {selectedClient.nombre_cliente}
