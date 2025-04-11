@@ -744,11 +744,16 @@ export default function DocsPage() {
 
                   <div className="mt-4 flex items-center">
                     <Checkbox
-                      isSelected={termsAccepted}
-                      onValueChange={setTermsAccepted}
-                      classNames={{
-                        label: "text-small ml-2",
-                      }}
+                      checked={termsAccepted}
+                      onChange={(e) => setTermsAccepted(e.target.checked)}
+                      className="
+    transition-all 
+    duration-200 
+    ease-in-out 
+    touch-manipulation
+    active:scale-105 
+    hover:scale-102
+  "
                     >
                       Acepto los
                     </Checkbox>
