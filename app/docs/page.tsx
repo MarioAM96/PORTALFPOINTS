@@ -408,19 +408,46 @@ export default function DocsPage() {
   return (
     <section className="container mx-auto px-4 py-8">
       <div className="flex flex-col items-center justify-center">
-        <div className="flex flex-wrap gap-4 items-start justify-center w-full transition-all duration-300 ease-in-out">
-          {/* Contenedor de identificación */}
-          <div className="relative overflow-hidden flex flex-col items-center border border-default-200 dark:border-default-100 px-4 py-6 rounded-lg mb-4">
-            <p className="mb-4 text-center text-sm text-gray-600">
-              Consulta tus puntos disponibles
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
+          {/* Contenedor de identificación - Centrado inicialmente */}
+          <div
+            className={`
+          relative 
+          overflow-hidden 
+          flex 
+          flex-col 
+          items-center 
+          border 
+          border-default-200 
+          dark:border-default-100 
+          px-4 
+          py-6 
+          rounded-lg
+          w-full
+          ${
+            showOtpForm || showSelect || selectedClient
+              ? "md:col-start-1"
+              : "md:col-start-2"
+          }
+        `}
+          >
+            <div className="text-center mb-6">
+              <h1 className="text-2xl font-bold mb-2">
+                <span className="text-black dark:text-white">Bien</span>
+                <span style={{ color: "#FE280A" }}>venido</span>
+              </h1>
+            </div>
+
+            <p className="mb-4 text-center text-sm text-default-600 w-full max-w-[300px] font-bold">
+              Ingresa tu número de cédula y consulta tus puntos disponibles
             </p>
+
             <Form
-              className="w-full max-w-xs flex flex-col gap-3"
+              className="w-full max-w-[300px] flex flex-col gap-3"
               validationErrors={errors}
               onSubmit={onSubmit}
             >
               <Input
-                label="Número de Cédula"
                 labelPlacement="outside"
                 name="identificacion"
                 placeholder="Ingrese 10 o 13 dígitos"
@@ -429,15 +456,20 @@ export default function DocsPage() {
                 type="text"
                 maxLength={13}
                 isDisabled={consultaRealizada}
+                className="w-full"
+                variant="bordered"
               />
-              <div className="flex gap-2">
+              <div className="w-full text-center">
                 {!consultaRealizada ? (
                   <Button
                     type="submit"
-                    variant="flat"
+                    variant="solid"
                     isLoading={loading}
-                    style={{ backgroundColor: "#FF4D4D", color: "white" }}
-                    className="flex-grow"
+                    className="w-full"
+                    style={{
+                      backgroundColor: "#FE280A",
+                      color: "white",
+                    }}
                   >
                     Consultar
                   </Button>
@@ -446,7 +478,7 @@ export default function DocsPage() {
                     type="button"
                     variant="flat"
                     color="secondary"
-                    className="flex-grow"
+                    className="w-full"
                     onPress={reiniciarProceso}
                   >
                     Realizar otra Consulta
@@ -456,178 +488,197 @@ export default function DocsPage() {
             </Form>
           </div>
 
-          {/* Contenedor de OTP */}
-          {showOtpForm && (
-            <div className="relative overflow-hidden flex items-center border border-default-200 dark:border-default-100 px-4 py-6 rounded-lg mb-4">
-              <div className="w-full">
-                <div className="mb-4 text-center">
-                  <p className="text-sm text-gray-600">
-                    Se ha enviado un código de verificación:
-                  </p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Por favor, ingrese el código de 6 dígitos
-                  </p>
-                </div>
-                <form
-                  className="flex flex-col gap-4 w-full"
-                  onSubmit={handleSubmit(onSubmitotp)}
-                >
-                  <Controller
-                    control={control}
-                    name="otp"
-                    render={({ field }) => (
-                      <InputOtp
-                        {...field}
-                        errorMessage={formErrors.otp?.message}
-                        isInvalid={!!formErrors.otp}
-                        length={6}
-                      />
-                    )}
-                    rules={{
-                      required: "El código es requerido",
-                      minLength: {
-                        value: 4,
-                        message: "Por favor ingrese el código",
-                      },
-                    }}
-                  />
-                  <Button
-                    className="max-w-fit mx-auto"
-                    type="submit"
-                    variant="flat"
-                    isLoading={loading}
+          {/* Contenedor de OTP, Select y Card de Cliente */}
+          <div className="md:col-span-2 flex flex-col md:flex-row items-start gap-4 w-full">
+            {/* Contenedor de OTP - Aparece dinámicamente */}
+            {showOtpForm && (
+              <div
+                className="
+              w-full md:w-1/2
+              relative 
+              overflow-hidden 
+              flex 
+              items-center 
+              border 
+              border-default-200 
+              dark:border-default-100 
+              px-4 
+              py-6 
+              rounded-lg
+              animate-fade-in
+            "
+              >
+                <div className="w-full">
+                  <div className="mb-4 text-center">
+                    <p className="text-sm text-default-600">
+                      Se ha enviado un código de verificación:
+                    </p>
+                    <p className="text-xs text-default-500 mt-1">
+                      Por favor, ingrese el código de 6 dígitos
+                    </p>
+                  </div>
+                  <form
+                    className="flex flex-col gap-4 w-full"
+                    onSubmit={handleSubmit(onSubmitotp)}
                   >
-                    Verificar Codigo
-                  </Button>
-                </form>
+                    <Controller
+                      control={control}
+                      name="otp"
+                      render={({ field }) => (
+                        <InputOtp
+                          {...field}
+                          errorMessage={formErrors.otp?.message}
+                          isInvalid={!!formErrors.otp}
+                          length={6}
+                        />
+                      )}
+                      rules={{
+                        required: "El código es requerido",
+                        minLength: {
+                          value: 4,
+                          message: "Por favor ingrese el código",
+                        },
+                      }}
+                    />
+                    <Button
+                      className="max-w-fit mx-auto"
+                      type="submit"
+                      variant="flat"
+                      color="primary"
+                      isLoading={loading}
+                    >
+                      Verificar Codigo
+                    </Button>
+                  </form>
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Contenedor de Select */}
-          {showSelect && (
-            <div className="w-full max-w-xs">
-              <Select
-                onSelectionChange={(keys) => {
-                  const selectedKey = Array.from(keys)[0];
-                  const client = clients.find(
-                    (c) => c.contrato === Number(selectedKey)
-                  );
-                  setSelectedClient(client || null);
-                }}
-                classNames={{
-                  label: "group-data-[filled=true]:-translate-y-5",
-                  trigger: "min-h-16",
-                  listboxWrapper: "max-h-[400px]",
-                }}
-                items={clients}
-                label="Contrato"
-                renderValue={(items) => {
-                  return items.map((item) => (
-                    <div key={item.key} className="flex items-center gap-2">
+            {/* Contenedor de Select - Aparece dinámicamente */}
+            {showSelect && (
+              <div className="w-full md:w-1/2 animate-fade-in">
+                <Select
+                  onSelectionChange={(keys) => {
+                    const selectedKey = Array.from(keys)[0];
+                    const client = clients.find(
+                      (c) => c.contrato === Number(selectedKey)
+                    );
+                    setSelectedClient(client || null);
+                  }}
+                  classNames={{
+                    label: "group-data-[filled=true]:-translate-y-5",
+                    trigger: "min-h-16",
+                    listboxWrapper: "max-h-[400px]",
+                  }}
+                  items={clients}
+                  label="Selecciona tu Contrato"
+                  renderValue={(items) => {
+                    return items.map((item) => (
+                      <div key={item.key} className="flex items-center gap-2">
+                        <div className="flex flex-col">
+                          <span>{item.data?.nombre_cliente ?? "Unknown"}</span>
+                          <span className="text-default-500 text-tiny">
+                            Dirección: {item.data?.direccion ?? "N/A"}
+                          </span>
+                        </div>
+                      </div>
+                    ));
+                  }}
+                  variant="bordered"
+                >
+                  {(client) => (
+                    <SelectItem
+                      key={client.contrato}
+                      textValue={client.nombre_cliente}
+                    >
                       <div className="flex flex-col">
-                        <span>{item.data?.nombre_cliente ?? "Unknown"}</span>
-                        <span className="text-default-500 text-tiny">
-                          Dirección: {item.data?.direccion ?? "N/A"}
+                        <span className="text-small">
+                          {client.nombre_cliente}
+                        </span>
+                        <span className="text-tiny text-default-400">
+                          Contrato: {client.contrato}
+                        </span>
+                        <span className="text-tiny text-default-400">
+                          Dirección: {client.direccion}
+                        </span>
+                        <span className="text-tiny text-default-400">
+                          Puntos: {client.max_actualpoints}
                         </span>
                       </div>
-                    </div>
-                  ));
-                }}
-                variant="bordered"
-              >
-                {(client) => (
-                  <SelectItem
-                    key={client.contrato}
-                    textValue={client.nombre_cliente}
-                  >
-                    <div className="flex flex-col">
-                      <span className="text-small">
-                        {client.nombre_cliente}
-                      </span>
-                      <span className="text-tiny text-default-400">
-                        Contrato: {client.contrato}
-                      </span>
-                      <span className="text-tiny text-default-400">
-                        Dirección: {client.direccion}
-                      </span>
-                      <span className="text-tiny text-default-400">
-                        Puntos: {client.max_actualpoints}
-                      </span>
-                    </div>
-                  </SelectItem>
-                )}
-              </Select>
-            </div>
-          )}
+                    </SelectItem>
+                  )}
+                </Select>
+              </div>
+            )}
 
-          {/* Contenedor de Card de Cliente */}
-          {selectedClient && (
-            <div className="w-full max-w-[400px]">
-              <Card>
-                <CardHeader className="flex gap-3">
-                  <div className="bg-default-100 rounded-full p-2">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 24 24"
-                      fill="currentColor"
-                      className="w-6 h-6 text-default-500"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M7.5 6a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0zM3.751 20.105a8.25 8.25 0 0116.498 0 .75.75 0 01-.437.695A18.683 18.683 0 0112 22.5c-2.786 0-5.433-.608-7.812-1.7a.75.75 0 01-.437-.695z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                  </div>
-                  <div className="flex flex-col">
-                    <p className="text-md font-bold">
-                      {selectedClient.nombre_cliente}
-                    </p>
-                    <p className="text-small text-default-500">
-                      Contrato: {selectedClient.contrato}
-                    </p>
-                  </div>
-                </CardHeader>
-                <Divider />
-                <CardBody>
-                  <div className="flex flex-col gap-2">
-                    <div className="bg-green-100 p-3 rounded-lg text-center">
-                      <p className="text-lg font-bold text-green-600">
-                        Puntos Disponibles
+            {/* Contenedor de Card de Cliente - Aparece dinámicamente */}
+            {selectedClient && (
+              <div className="w-full md:w-1/2 max-w-[400px] animate-fade-in">
+                <Card>
+                  <CardHeader className="flex gap-3">
+                    <div className="bg-default-100 rounded-full p-2">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        fill="currentColor"
+                        className="w-6 h-6 text-default-500"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M7.5 6a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0zM3.751 20.105a8.25 8.25 0 0116.498 0 .75.75 0 01-.437.695A18.683 18.683 0 0112 22.5c-2.786 0-5.433-.608-7.812-1.7a.75.75 0 01-.437-.695z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    </div>
+                    <div className="flex flex-col">
+                      <p className="text-md font-bold">
+                        {selectedClient.nombre_cliente}
                       </p>
-                      <p className="text-2xl font-extrabold text-green-800">
-                        {selectedClient.max_actualpoints.toLocaleString()} pts
+                      <p className="text-small text-default-500">
+                        Contrato: {selectedClient.contrato}
                       </p>
                     </div>
-                  </div>
-                </CardBody>
-                <Divider />
-                <CardFooter>
-                  <Link
-                    isExternal
-                    showAnchorIcon
-                    href={`https://fibramax.ec/wp-content/uploads/2024/11/TERMINOS-Y-CONDICIONES-FIBRAPOINTS.pdf`}
-                  >
-                    Términos y condiciones
-                  </Link>
-                </CardFooter>
-              </Card>
-            </div>
-          )}
+                  </CardHeader>
+                  <Divider />
+                  <CardBody>
+                    <div className="flex flex-col gap-2">
+                      <div className="bg-success-100 p-3 rounded-lg text-center">
+                        <p className="text-lg font-bold text-success-600">
+                          Puntos Disponibles
+                        </p>
+                        <p className="text-2xl font-extrabold text-success-800">
+                          {selectedClient.max_actualpoints.toLocaleString()} pts
+                        </p>
+                      </div>
+                    </div>
+                  </CardBody>
+                  <Divider />
+                  <CardFooter>
+                    <Link
+                      isExternal
+                      showAnchorIcon
+                      href={`https://fibramax.ec/wp-content/uploads/2024/11/TERMINOS-Y-CONDICIONES-FIBRAPOINTS.pdf`}
+                    >
+                      Términos y condiciones
+                    </Link>
+                  </CardFooter>
+                </Card>
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Sección de Productos */}
+        {/* Sección de Productos Disponibles */}
         {selectedClient && (
           <div className="w-full mt-8">
             <h2 className="text-2xl font-bold text-center mb-6">
               Productos Disponibles
             </h2>
-            <p className="text-center text-xs text-gray-500 mb-4">
+            <p className="text-center text-xs text-default-500 mb-4">
               * Las imágenes presentadas son referenciales y pueden variar del
               producto final.
             </p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-8">
               {products.map((product) => (
                 <Card
                   key={product.idcausal_subcategoria}
@@ -733,11 +784,6 @@ export default function DocsPage() {
                               </div>
                             )}
                         </div>
-
-                        {/* <div>
-                          <p className="font-bold">Fecha de Registro:</p>
-                          <p>{selectedProduct?.fecha_registro_causal}</p>
-                        </div> */}
                       </div>
                     </div>
                   </div>
@@ -747,13 +793,13 @@ export default function DocsPage() {
                       checked={termsAccepted}
                       onChange={(e) => setTermsAccepted(e.target.checked)}
                       className="
-    transition-all 
-    duration-200 
-    ease-in-out 
-    touch-manipulation
-    active:scale-105 
-    hover:scale-102
-  "
+                    transition-all 
+                    duration-200 
+                    ease-in-out 
+                    touch-manipulation
+                    active:scale-105 
+                    hover:scale-102
+                  "
                     >
                       Acepto los
                     </Checkbox>
