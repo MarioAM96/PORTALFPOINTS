@@ -7,9 +7,9 @@ import { addToast } from "@heroui/toast";
 import { InputOtp } from "@heroui/input-otp";
 import { useForm, Controller } from "react-hook-form";
 import { Select } from "@heroui/select";
-import CustomButton from "../../components/custom-button";
 import { SelectItem } from "@heroui/select";
 import confetti from "canvas-confetti";
+import { fetchData, postData } from "@/services/apiService";
 
 import {
   Card,
@@ -20,56 +20,41 @@ import {
   Link,
   Image,
 } from "@heroui/react";
-import {
-  Modal,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalFooter,
-  useDisclosure,
-  Checkbox,
-} from "@heroui/react";
-import React, { useState, useRef } from "react";
+import { useDisclosure } from "@heroui/react";
+import React, { useState } from "react";
+import HistorialTable from "./HistorialTable/historialtable";
+import { ClientData } from "./Models/ClientData";
+import { ProductData } from "./Models/ProductData";
+import ConfirmModal from "./Modals/ConfirmModal";
+import SuccessModal from "./Modals/SuccessModal";
 
-interface ClientData {
-  nombre_cliente: string;
-  contrato: number;
-  idCiudad: string;
-  idZona: string;
-  tipoServicio: string;
-  direccion: string;
-  max_actualpoints: number;
-}
-interface ProductData {
-  idcausal_subcategoria: number;
-  nombre_causal: string;
-  idsubcategoria_incidencia: string;
-  estado_causal: string;
-  fecha_registro_causal: string;
-  usuario_registra_causal?: string | null;
-  valor?: string | null;
-  puntos: string;
-  image_url: string;
-}
-
-export default function DocsPage() {
+export default function FibraPointsPage() {
   const [identificacion, setIdentificacion] = useState("");
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [loading, setLoading] = useState(false);
   const [clients, setClients] = useState<ClientData[]>([]);
   const [products, setProducts] = useState<ProductData[]>([]);
-  const { isOpen, onOpen, onOpenChange } = useDisclosure();
+  const {
+    isOpen: isOpenConfirm,
+    onOpen: onOpenConfirm,
+    onOpenChange: onOpenChangeConfirm,
+  } = useDisclosure();
+
+  const {
+    isOpen: isOpenSuccess,
+    onOpen: onOpenSuccess,
+    onOpenChange: onOpenChangeSuccess,
+  } = useDisclosure();
   const [otpCode, setOtpCode] = useState("");
+  const [reloadTrigger, setReloadTrigger] = useState(0);
   const [selectedProduct, setSelectedProduct] = useState<ProductData | null>(
     null
   );
-  const confettiButtonRef = useRef<HTMLButtonElement>(null);
   const [consultaRealizada, setConsultaRealizada] = useState(false);
-
   const triggerConfetti = () => {
     confetti({
-      particleCount: 100,
-      spread: 70,
+      particleCount: 1000,
+      spread: 100,
       origin: { x: 0.5, y: 0.5 },
     });
   };
@@ -77,100 +62,115 @@ export default function DocsPage() {
   const handleProductSelect = (product: ProductData) => {
     setSelectedProduct(product);
     setTermsAccepted(false);
-    onOpen();
+    onOpenConfirm();
   };
 
   const handleConfirm = async (onClose: () => void) => {
-    if (termsAccepted && selectedProduct && selectedClient) {
-      try {
-        const now = new Date();
-        const fecha_insidencia = now.toISOString().slice(0, 16);
-        const hora_ini_op = now.toTimeString().slice(0, 8);
-        const finOpDate = new Date(now.getTime() + 5 * 60000);
-        const hora_fin_op = finOpDate.toTimeString().slice(0, 8);
+    if (!termsAccepted || !selectedProduct || !selectedClient) return;
 
-        let visita = false;
-        let estado_ticket = 1;
-        let departamento = 6;
+    if (!otpCode || otpCode.length !== 6) {
+      addToast({
+        title: "Código inválido",
+        description: "Por favor, ingrese un código OTP válido de 6 dígitos.",
+        color: "danger",
+      });
+      return;
+    }
 
-        if (selectedProduct.idcausal_subcategoria === 119) {
-          departamento = 13;
-        }
+    setLoading(true);
+    try {
+      const now = new Date();
+      const fecha_insidencia = now.toISOString().slice(0, 16);
+      const hora_ini_op = now.toTimeString().slice(0, 8);
+      const finOpDate = new Date(now.getTime() + 5 * 60000);
+      const hora_fin_op = finOpDate.toTimeString().slice(0, 8);
 
-        const payload = {
-          canal_comunicacion: "5",
-          estado: estado_ticket,
-          facturada: "SI",
-          fecha_insidencia: fecha_insidencia,
-          hora_fin_op: hora_fin_op,
-          hora_ini_op: hora_ini_op,
-          idCiudad: selectedClient.idCiudad,
-          idContrato: selectedClient.contrato,
-          id_departamento: departamento,
-          id_usuario_gestiona: "187",
-          idcausal_subcategoria: selectedProduct.idcausal_subcategoria,
-          idsubcategoria_incidencia: selectedProduct.idsubcategoria_incidencia,
-          insidencia: 229,
-          observaciones: "Canje FibraPoints Web",
-          prioridad: "Alta",
-          requiere_visita: visita,
-          tecnico: 6,
-          tiempo_op: "00:00:01",
-          tipo_servicio: "2",
-          usuario: "187",
-          valor_facturar: "0.00",
-          zona: selectedClient.idZona,
-          code: otpCode,
-        };
+      let visita = false;
+      let estado_ticket = 1;
+      let departamento = 6;
 
-        const response = await fetch(
-          "https://api.tvmax.ec/api/nuevo-ticket-cf",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(payload),
-          }
-        );
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          const errorMessage = errorData.message || "Error en la solicitud.";
-          throw new Error(errorMessage);
-        }
-
-        const data = await response.json();
-
-        addToast({
-          title: "Canje exitoso",
-          description:
-            "El canje se ha generado exitosamente. En el transcurso del día, un asesor se comunicará con usted para gestionar la entrega de la promoción.",
-          color: "success",
-        });
-        triggerConfetti();
-
-        // Resetear todos los estados
-        onClose();
-        setIdentificacion("");
-        setSelectedProduct(null);
-        setSelectedClient(null);
-        setTermsAccepted(false);
-        setOtpCode("");
-        setShowOtpForm(false);
-        setShowSelect(false);
-        setClients([]);
-        setProducts([]);
-      } catch (error) {
-        console.error("Error:", error);
-
-        addToast({
-          title: "Error en el canje",
-          description:
-            error instanceof Error ? error.message : "Error desconocido",
-          color: "danger",
-        });
+      if (selectedProduct.idcausal_subcategoria === 119) {
+        departamento = 13;
       }
+
+      const ticketData = {
+        canal_comunicacion: "5",
+        estado: estado_ticket,
+        facturada: "SI",
+        fecha_insidencia: fecha_insidencia,
+        hora_fin_op: hora_fin_op,
+        hora_ini_op: hora_ini_op,
+        idCiudad: selectedClient.idCiudad,
+        idContrato: selectedClient.contrato,
+        id_departamento: departamento,
+        id_usuario_gestiona: "187",
+        idcausal_subcategoria: selectedProduct.idcausal_subcategoria,
+        idsubcategoria_incidencia: selectedProduct.idsubcategoria_incidencia,
+        insidencia: 229,
+        observaciones: "Canje FibraPoints Web",
+        prioridad: "Alta",
+        requiere_visita: visita,
+        tecnico: 6,
+        tiempo_op: "00:00:01",
+        tipo_servicio: "2",
+        usuario: "187",
+        valor_facturar: "0.00",
+        zona: selectedClient.idZona,
+        code: otpCode,
+      };
+
+      const response = await postData("nuevo-ticket-cf", ticketData);
+
+      // Verificar si la respuesta indica un error
+      if (
+        !response ||
+        response.error ||
+        (response.status && response.status !== 200)
+      ) {
+        throw new Error(response?.message || "Error al crear el ticket.");
+      }
+
+      addToast({
+        title: "Canje exitoso",
+        description:
+          "El canje se ha generado exitosamente. En el transcurso del día, un asesor se comunicará con usted para gestionar la entrega de la promoción.",
+        color: "success",
+      });
+      onClose();
+      onOpenSuccess();
+      const puntosBloqueados = await GetPuntosBloqueados(
+        selectedClient.contrato
+      );
+      if (puntosBloqueados) {
+        selectedClient.max_actualpoints = puntosBloqueados;
+      }
+      handleReload();
+      triggerConfetti();
+      for (let i = 1; i < 4; i++) {
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+        triggerConfetti();
+      }
+      //reiniciarProceso();
+    } catch (error) {
+      console.error("Error al procesar el canje:", error);
+      let errorMessage = "Error desconocido al procesar el canje.";
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (
+        typeof error === "object" &&
+        error !== null &&
+        "message" in error &&
+        typeof (error as { message?: unknown }).message === "string"
+      ) {
+        errorMessage = (error as { message: string }).message;
+      }
+      addToast({
+        title: "Error en el canje",
+        description: errorMessage,
+        color: "danger",
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -188,30 +188,21 @@ export default function DocsPage() {
   const [showOtpForm, setShowOtpForm] = useState(false);
   const [showSelect, setShowSelect] = useState(false);
 
+  const handleReload = () => {
+    setReloadTrigger((prev) => prev + 1);
+  };
+
   const onSubmitotp = async (data: { otp: string }) => {
     try {
       setOtpCode(data.otp);
-      // Set loading state
       setLoading(true);
 
       // Make POST request to verify OTP
-      const response = await fetch(
-        "https://api.tvmax.ec/api/verificar-codigo-fibrapoints",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            identificacion: identificacion, // Use the identificacion from state
-            codigo: data.otp, // Use the OTP entered by user
-          }),
-        }
-      );
+      const result = await postData("verificar-codigo-fibrapoints", {
+        identificacion: identificacion,
+        codigo: data.otp,
+      });
 
-      // Parse the response
-      const result = await response.json();
-      //console.log(result);
       // Handle different response scenarios
       if (result.message) {
         if (
@@ -265,6 +256,22 @@ export default function DocsPage() {
     setShowOtpForm(false);
   };
 
+  async function GetPuntosBloqueados(idContrato: any) {
+    try {
+      const response = await fetchData("get_fpoints/" + idContrato);
+      const puntosBloqueados = response.puntos_disponibles;
+      return puntosBloqueados;
+    } catch (error) {
+      console.error("Error al obtener puntos:", error);
+      addToast({
+        title: "Error",
+        description: "Ocurrió un error al intentar obtener los puntos.",
+        color: "danger",
+      });
+      return null;
+    }
+  }
+
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setErrors({});
@@ -287,21 +294,10 @@ export default function DocsPage() {
     }
 
     try {
-      const response = await fetch(
-        "https://api.tvmax.ec/api/obtener-codigo-fibrapoints",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            identificacion: identificacion,
-            ip: "200.63.105.162",
-          }),
-        }
-      );
-
-      const result = await response.json();
+      const result = await postData("obtener-codigo-fibrapoints", {
+        identificacion: identificacion,
+        ip: "200.63.105.162",
+      });
 
       if (
         result.message &&
@@ -367,19 +363,7 @@ export default function DocsPage() {
     try {
       setLoading(true);
 
-      const response = await fetch(
-        "https://api.tvmax.ec/api/get-activeproducts/33",
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      const result = await response.json();
-      //console.log(result);
-
+      const result = await fetchData("get-activeproducts/33");
       // Set products instead of clients
       setProducts(result);
     } catch (error) {
@@ -403,33 +387,43 @@ export default function DocsPage() {
     setClients([]);
     setProducts([]);
     setConsultaRealizada(false);
+    setSelectedProduct(null);
+    setTermsAccepted(false);
+    setOtpCode("");
+    if (isOpenConfirm) {
+      onOpenChangeConfirm();
+    }
+    if (isOpenSuccess) {
+      onOpenChangeSuccess();
+    }
   };
 
   return (
     <section className="container mx-auto px-4 py-8">
       <div className="flex flex-col items-center justify-center">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
-          {/* Contenedor de identificación - Centrado inicialmente */}
+        {/* Main Grid Layout */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full">
+          {/* Identification Form Container */}
           <div
             className={`
-          relative 
-          overflow-hidden 
-          flex 
-          flex-col 
-          items-center 
-          border 
-          border-default-200 
-          dark:border-default-100 
-          px-4 
-          py-6 
-          rounded-lg
-          w-full
-          ${
-            showOtpForm || showSelect || selectedClient
-              ? "md:col-start-1"
-              : "md:col-start-2"
-          }
-        `}
+            relative 
+            overflow-hidden 
+            flex 
+            flex-col 
+            items-center 
+            border 
+            border-default-200 
+            dark:border-default-100 
+            px-4 
+            py-6 
+            rounded-lg
+            w-full
+            ${
+              showOtpForm || showSelect || selectedClient
+                ? "md:col-start-1"
+                : "md:col-start-2"
+            }
+          `}
           >
             <div className="text-center mb-6">
               <h1 className="text-2xl font-bold mb-2">
@@ -441,7 +435,6 @@ export default function DocsPage() {
             <p className="mb-4 text-center text-sm text-default-600 w-full max-w-[300px] font-bold">
               Ingresa tu número de cédula y consulta tus puntos disponibles
             </p>
-
             <Form
               className="w-full max-w-[300px] flex flex-col gap-3"
               validationErrors={errors}
@@ -488,25 +481,24 @@ export default function DocsPage() {
             </Form>
           </div>
 
-          {/* Contenedor de OTP, Select y Card de Cliente */}
+          {/* OTP, Select, and Client Card Container */}
           <div className="md:col-span-2 flex flex-col md:flex-row items-start gap-4 w-full">
-            {/* Contenedor de OTP - Aparece dinámicamente */}
             {showOtpForm && (
               <div
                 className="
-              w-full md:w-1/2
-              relative 
-              overflow-hidden 
-              flex 
-              items-center 
-              border 
-              border-default-200 
-              dark:border-default-100 
-              px-4 
-              py-6 
-              rounded-lg
-              animate-fade-in
-            "
+                w-full md:w-1/2
+                relative 
+                overflow-hidden 
+                flex 
+                items-center 
+                border 
+                border-default-200 
+                dark:border-default-100 
+                px-4 
+                py-6 
+                rounded-lg
+                animate-fade-in
+              "
               >
                 <div className="w-full">
                   <div className="mb-4 text-center">
@@ -547,14 +539,13 @@ export default function DocsPage() {
                       color="primary"
                       isLoading={loading}
                     >
-                      Verificar Codigo
+                      Verificar Código
                     </Button>
                   </form>
                 </div>
               </div>
             )}
 
-            {/* Contenedor de Select - Aparece dinámicamente */}
             {showSelect && (
               <div className="w-full md:w-1/2 animate-fade-in">
                 <Select
@@ -572,8 +563,8 @@ export default function DocsPage() {
                   }}
                   items={clients}
                   label="Selecciona tu Contrato"
-                  renderValue={(items) => {
-                    return items.map((item) => (
+                  renderValue={(items) =>
+                    items.map((item) => (
                       <div key={item.key} className="flex items-center gap-2">
                         <div className="flex flex-col">
                           <span>{item.data?.nombre_cliente ?? "Unknown"}</span>
@@ -582,8 +573,8 @@ export default function DocsPage() {
                           </span>
                         </div>
                       </div>
-                    ));
-                  }}
+                    ))
+                  }
                   variant="bordered"
                 >
                   {(client) => (
@@ -611,7 +602,6 @@ export default function DocsPage() {
               </div>
             )}
 
-            {/* Contenedor de Card de Cliente - Aparece dinámicamente */}
             {selectedClient && (
               <div className="w-full md:w-1/2 max-w-[400px] animate-fade-in">
                 <Card>
@@ -668,173 +658,82 @@ export default function DocsPage() {
           </div>
         </div>
 
-        {/* Sección de Productos Disponibles */}
+        {/* Client Information Section */}
         {selectedClient && (
-          <div className="w-full mt-8">
-            <h2 className="text-2xl font-bold text-center mb-6">
-              Productos Disponibles
-            </h2>
-            <p className="text-center text-xs text-default-500 mb-4">
-              * Las imágenes presentadas son referenciales y pueden variar del
-              producto final.
-            </p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-8">
-              {products.map((product) => (
-                <Card
-                  key={product.idcausal_subcategoria}
-                  isPressable
-                  shadow="sm"
-                  onPress={() => handleProductSelect(product)}
-                  className="transition-transform duration-300 hover:scale-105"
-                >
-                  <CardBody className="overflow-visible p-0">
-                    <Image
-                      alt={product.nombre_causal}
-                      className="w-full object-cover h-[140px]"
-                      radius="lg"
-                      shadow="sm"
-                      src={product.image_url}
-                      width="100%"
-                    />
-                  </CardBody>
-                  <CardFooter className="text-small justify-between">
-                    <b>{product.nombre_causal}</b>
-                    <p className="text-default-500">{product.puntos} Puntos</p>
-                  </CardFooter>
-                </Card>
-              ))}
+          <div className="w-full mt-8 flex flex-col gap-8">
+            {/* Transaction History Section */}
+            <div>
+              <h2 className="text-2xl font-bold text-center mb-4">
+                Historial de canjes
+              </h2>
+              <HistorialTable
+                idContrato={selectedClient.contrato}
+                reloadTrigger={reloadTrigger}
+              />
+            </div>
+            {/* Products Section */}
+            <div>
+              <h2 className="text-2xl font-bold text-center mb-4">
+                Productos Disponibles
+              </h2>
+              <p className="text-center text-xs text-default-500 mb-6">
+                * Las imágenes presentadas son referenciales y pueden variar del
+                producto final.
+              </p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-8">
+                {products.map((product) => (
+                  <Card
+                    key={product.idcausal_subcategoria}
+                    isPressable
+                    shadow="sm"
+                    onPress={() => handleProductSelect(product)}
+                    className="transition-transform duration-300 hover:scale-105"
+                  >
+                    <CardBody className="overflow-visible p-0">
+                      <Image
+                        alt={product.nombre_causal}
+                        className="w-full object-cover h-[140px]"
+                        radius="lg"
+                        shadow="sm"
+                        src={product.image_url}
+                        width="100%"
+                      />
+                    </CardBody>
+                    <CardFooter className="text-small justify-between">
+                      <b>{product.nombre_causal}</b>
+                      <p className="text-default-500">
+                        {product.puntos} Puntos
+                      </p>
+                    </CardFooter>
+                  </Card>
+                ))}
+              </div>
+            </div>
+            <div className="flex justify-end w-full">
+              <Button color="danger" variant="flat" onPress={reiniciarProceso}>
+                Salir
+              </Button>
             </div>
           </div>
         )}
 
-        {/* Modal de Confirmación de Producto */}
-        <Modal
-          isOpen={isOpen}
-          placement="top-center"
-          onOpenChange={onOpenChange}
-          size="2xl"
-        >
-          <ModalContent>
-            {(onClose) => (
-              <>
-                <ModalHeader className="flex flex-col gap-1">
-                  {selectedProduct?.nombre_causal}
-                </ModalHeader>
-                <ModalBody>
-                  <div className="flex flex-col md:flex-row gap-4">
-                    <div className="w-full md:w-1/2">
-                      <Image
-                        alt={selectedProduct?.nombre_causal}
-                        className="w-full object-cover h-[300px] rounded-lg"
-                        src={selectedProduct?.image_url}
-                      />
-                    </div>
-                    <div className="w-full md:w-1/2">
-                      <div className="space-y-4">
-                        <div>
-                          <p className="font-bold">Detalles del Producto:</p>
-                          <p>{selectedProduct?.nombre_causal}</p>
-                        </div>
-
-                        {/* Sección de Puntos */}
-                        <div className="bg-default-100 p-3 rounded-lg">
-                          <div className="flex justify-between items-center mb-2">
-                            <p className="font-bold text-default-700">
-                              Puntos Requeridos:
-                            </p>
-                            <p
-                              className={`font-semibold ${
-                                (selectedClient?.max_actualpoints ?? 0) <
-                                parseInt(selectedProduct?.puntos || "0")
-                                  ? "text-danger"
-                                  : "text-success"
-                              }`}
-                            >
-                              {selectedProduct?.puntos ?? 0} Puntos
-                            </p>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <p className="font-bold text-default-700">
-                              Tus Puntos Actuales:
-                            </p>
-                            <p
-                              className={`font-semibold ${
-                                (selectedClient?.max_actualpoints ?? 0) <
-                                parseInt(selectedProduct?.puntos || "0")
-                                  ? "text-danger"
-                                  : "text-success"
-                              }`}
-                            >
-                              {selectedClient
-                                ? selectedClient.max_actualpoints
-                                : 0}{" "}
-                              Puntos
-                            </p>
-                          </div>
-
-                          {selectedClient &&
-                            selectedProduct &&
-                            selectedClient.max_actualpoints <
-                              parseInt(selectedProduct.puntos) && (
-                              <div className="mt-2 text-center">
-                                <p className="text-danger text-xs">
-                                  Puntos insuficientes para canjear este
-                                  producto
-                                </p>
-                              </div>
-                            )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mt-4 flex items-center">
-                    <Checkbox
-                      checked={termsAccepted}
-                      onChange={(e) => setTermsAccepted(e.target.checked)}
-                      className="
-                    transition-all 
-                    duration-200 
-                    ease-in-out 
-                    touch-manipulation
-                    active:scale-105 
-                    hover:scale-102
-                  "
-                    >
-                      Acepto los
-                    </Checkbox>
-                    <Link
-                      isExternal
-                      showAnchorIcon
-                      href="https://fibramax.ec/wp-content/uploads/2024/11/TERMINOS-Y-CONDICIONES-FIBRAPOINTS.pdf"
-                      className="ml-2"
-                    >
-                      Términos y condiciones
-                    </Link>
-                  </div>
-                </ModalBody>
-                <ModalFooter>
-                  <Button color="danger" variant="flat" onPress={onClose}>
-                    Atrás
-                  </Button>
-                  <Button
-                    color="primary"
-                    onPress={() => handleConfirm(onClose)}
-                    isDisabled={
-                      !termsAccepted ||
-                      !selectedClient ||
-                      !selectedProduct ||
-                      (selectedClient?.max_actualpoints ?? 0) <
-                        parseInt(selectedProduct?.puntos || "0")
-                    }
-                  >
-                    Confirmar
-                  </Button>
-                </ModalFooter>
-              </>
-            )}
-          </ModalContent>
-        </Modal>
+        {/* Product Confirmation Modal */}
+        <ConfirmModal
+          isOpen={isOpenConfirm}
+          onOpenChange={onOpenChangeConfirm}
+          selectedProduct={selectedProduct}
+          selectedClient={selectedClient}
+          termsAccepted={termsAccepted}
+          setTermsAccepted={setTermsAccepted}
+          handleConfirm={handleConfirm}
+        />
+        {/* Product Success Modal */}
+        <SuccessModal
+          isOpen={isOpenSuccess}
+          onOpenChange={onOpenChangeSuccess}
+          selectedProduct={selectedProduct}
+          reiniciarProceso={reiniciarProceso}
+        />
       </div>
     </section>
   );
